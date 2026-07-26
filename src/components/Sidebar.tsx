@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { LogOut } from "lucide-react";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: "🏠" },
@@ -15,6 +16,13 @@ const NAV_ITEMS = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
+    router.refresh();
+  };
 
   return (
     <aside className="w-64 glass hidden md:flex flex-col border-r p-6 shrink-0 z-20 sticky top-0 h-screen">
@@ -48,7 +56,7 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <div className="mt-auto">
+      <div className="mt-auto space-y-3">
         <div className="glass rounded-2xl p-4 text-center border-primary/20">
           <Avatar className="w-16 h-16 mx-auto mb-2 border-2 border-primary/50">
             <AvatarImage src="https://api.dicebear.com/7.x/notionists/svg?seed=Thamizh&backgroundColor=ffb6c1" />
@@ -57,6 +65,13 @@ export default function Sidebar() {
           <p className="font-semibold text-sm">Thamizh</p>
           <p className="text-xs text-muted-foreground mt-0.5">Scholar in Progress 🌸</p>
         </div>
+
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-rose-500 py-2.5 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors"
+        >
+          <LogOut size={16} /> Sign Out
+        </button>
       </div>
     </aside>
   );
