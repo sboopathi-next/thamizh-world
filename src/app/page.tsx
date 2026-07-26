@@ -4,8 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle2, Target, BookOpen, Dumbbell, Moon, Loader2, Flame, Sparkles } from "lucide-react";
+import { CheckCircle2, Target, BookOpen, Dumbbell, Moon, Loader2, Flame, Sparkles, Sun } from "lucide-react";
 import { getXPForLevel, getTodayQuote } from "@/lib/utils-app";
+import { getTimeState } from "@/lib/time-theme";
+import TwinklingStars from "@/components/TwinklingStars";
 
 function getIconForHabit(name: string) {
   const n = name.toLowerCase();
@@ -21,8 +23,21 @@ export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [dailyLog, setDailyLog] = useState<any>(null);
   const [showLevelUp, setShowLevelUp] = useState(false);
+  const [timeState, setTimeState] = useState(getTimeState());
+  const [isNightMode, setIsNightMode] = useState(false);
 
   useEffect(() => {
+    // Determine time of day state
+    const current = getTimeState();
+    setTimeState(current);
+    setIsNightMode(current.isNight);
+
+    // Update time state every minute
+    const interval = setInterval(() => {
+      const updated = getTimeState();
+      setTimeState(updated);
+    }, 60000);
+
     async function load() {
       await fetch("/api/init");
       const res = await fetch("/api/dashboard");
@@ -31,6 +46,8 @@ export default function Home() {
       setLoading(false);
     }
     load();
+
+    return () => clearInterval(interval);
   }, []);
 
   const toggleHabit = async (habitId: string, currentStatus: boolean) => {
@@ -73,13 +90,20 @@ export default function Home() {
   const totalHabits = dailyLog?.habits.length || 1;
 
   return (
-    <div className="min-h-screen p-6 md:p-10 max-w-5xl mx-auto">
+    <div className={`min-h-screen p-6 md:p-10 max-w-5xl mx-auto transition-colors duration-700 relative ${
+      isNightMode 
+        ? "bg-[#0f0a1c] text-purple-100 dark" 
+        : ""
+    }`}>
+      {/* Twinkling Stars Background for Night Mode */}
+      {isNightMode && <TwinklingStars />}
+
       {/* Level Up Celebration */}
       <AnimatePresence>
         {showLevelUp && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
           >
             <motion.div
               initial={{ scale: 0.5, y: 50 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.8, y: -30 }}
@@ -95,21 +119,42 @@ export default function Home() {
       </AnimatePresence>
 
       {/* Header */}
-      <header className="mb-8">
-        <p className="text-muted-foreground text-sm font-medium uppercase tracking-wider mb-1">
-          {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
-        </p>
-        <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Good Morning 🌸</h1>
-        <p className="text-muted-foreground text-lg mt-1">Ready to conquer the day, <span className="text-primary font-semibold">Thamizh</span>?</p>
+      <header className="mb-8 flex justify-between items-start relative z-10">
+        <div>
+          <p className="text-muted-foreground text-sm font-medium uppercase tracking-wider mb-1 flex items-center gap-1.5">
+            <span>{timeState.icon}</span>
+            <span>{new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</span>
+          </p>
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
+            {timeState.greeting}
+          </h1>
+          <p className="text-muted-foreground text-lg mt-1">
+            {timeState.subtext} <span className="text-primary font-semibold">Thamizh</span>
+          </p>
+        </div>
+
+        {/* Night / Day Mode Preview Toggle */}
+        <button
+          onClick={() => setIsNightMode(!isNightMode)}
+          title={isNightMode ? "Switch to Day Mode" : "Switch to Night Mode"}
+          className={`p-2.5 rounded-2xl glass transition-all border flex items-center gap-2 text-xs font-semibold ${
+            isNightMode 
+              ? "border-purple-500/40 bg-purple-950/40 text-purple-200 hover:bg-purple-900/50" 
+              : "border-primary/20 bg-primary/5 text-primary hover:bg-primary/10"
+          }`}
+        >
+          {isNightMode ? <Sun size={18} className="text-amber-300" /> : <Moon size={18} className="text-purple-500" />}
+          <span className="hidden sm:inline">{isNightMode ? "Day Theme" : "Night Theme"}</span>
+        </button>
       </header>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 relative z-10">
         {[
-          { label: "Level", value: user.level, sub: "Scholar", color: "text-primary", bg: "bg-primary/10" },
-          { label: "🔥 Streak", value: `${user.streak}d`, sub: `Best: ${user.bestStreak}d`, color: "text-orange-500", bg: "bg-orange-50 dark:bg-orange-950/20" },
-          { label: "Today's Score", value: `${dailyLog?.score || 0}%`, sub: `${completedHabits}/${totalHabits} done`, color: "text-emerald-500", bg: "bg-emerald-50 dark:bg-emerald-950/20" },
-          { label: "Total XP", value: Math.floor(user.xp), sub: `/${targetXP} this level`, color: "text-purple-500", bg: "bg-purple-50 dark:bg-purple-950/20" },
+          { label: "Level", value: user.level, sub: "Scholar", color: "text-primary", bg: isNightMode ? "bg-purple-900/30 border-purple-500/20" : "bg-primary/10" },
+          { label: "🔥 Streak", value: `${user.streak}d`, sub: `Best: ${user.bestStreak}d`, color: "text-orange-500", bg: isNightMode ? "bg-orange-950/30 border-orange-900/30" : "bg-orange-50 dark:bg-orange-950/20" },
+          { label: "Today's Score", value: `${dailyLog?.score || 0}%`, sub: `${completedHabits}/${totalHabits} done`, color: "text-emerald-500", bg: isNightMode ? "bg-emerald-950/30 border-emerald-900/30" : "bg-emerald-50 dark:bg-emerald-950/20" },
+          { label: "Total XP", value: Math.floor(user.xp), sub: `/${targetXP} this level`, color: "text-purple-400", bg: isNightMode ? "bg-purple-950/30 border-purple-900/30" : "bg-purple-50 dark:bg-purple-950/20" },
         ].map((stat) => (
           <Card key={stat.label} className={`glass shadow-sm ${stat.bg} border-0`}>
             <CardContent className="p-4 text-center">
@@ -122,7 +167,7 @@ export default function Home() {
       </div>
 
       {/* XP Progress */}
-      <Card className="glass shadow-sm mb-8 border-primary/20">
+      <Card className={`glass shadow-sm mb-8 border-primary/20 relative z-10 ${isNightMode ? "bg-purple-950/20" : ""}`}>
         <CardContent className="p-5">
           <div className="flex justify-between items-center mb-3">
             <span className="font-semibold text-sm">Level {user.level} → {user.level + 1}</span>
@@ -134,12 +179,12 @@ export default function Home() {
       </Card>
 
       {/* Quote */}
-      <div className="glass rounded-2xl p-5 text-center italic text-primary/80 text-base mb-8 border-primary/10">
+      <div className={`glass rounded-2xl p-5 text-center italic text-primary/80 text-base mb-8 border-primary/10 relative z-10 ${isNightMode ? "bg-purple-950/30 text-purple-200" : ""}`}>
         ✨ "{getTodayQuote()}"
       </div>
 
       {/* Today's Mission */}
-      <div>
+      <div className="relative z-10">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold flex items-center gap-2">
             <CheckCircle2 className="text-primary" size={22} /> Today's Mission
@@ -162,7 +207,7 @@ export default function Home() {
                 onClick={() => toggleHabit(habit._id, isDone)}
                 className={`glass p-4 rounded-2xl flex items-center justify-between cursor-pointer transition-all border ${
                   isDone ? "border-primary/40 bg-primary/5" : "border-white/30 hover:border-primary/30"
-                }`}
+                } ${isNightMode && isDone ? "bg-purple-950/40 border-purple-500/30" : ""}`}
               >
                 <div className="flex items-center gap-3">
                   <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${isDone ? "bg-primary border-primary" : "border-muted-foreground/30"}`}>
