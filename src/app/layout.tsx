@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ConditionalSidebar from "@/components/ConditionalSidebar";
+import BottomNav from "@/components/BottomNav";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,9 +31,11 @@ export default function RootLayout({
     >
       <body className="min-h-full flex">
         <ConditionalSidebar />
-        <div className="flex-1 min-h-screen overflow-y-auto">
+        {/* Add pb-20 on mobile so content clears the bottom nav bar */}
+        <div className="flex-1 min-h-screen overflow-y-auto pb-20 md:pb-0">
           {children}
         </div>
+        <BottomNav />
       </body>
     </html>
   );
