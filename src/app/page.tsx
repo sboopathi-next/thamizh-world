@@ -9,7 +9,8 @@ import { getXPForLevel, getTodayQuote } from "@/lib/utils-app";
 import { getTimeState } from "@/lib/time-theme";
 import TwinklingStars from "@/components/TwinklingStars";
 
-function getIconForHabit(name: string) {
+function getIconForHabit(name?: string) {
+  if (!name) return <Sparkles size={16} className="text-primary" />;
   const n = name.toLowerCase();
   if (n.includes("wake") || n.includes("sleep")) return <Moon size={16} className="text-indigo-400" />;
   if (n.includes("english") || n.includes("read")) return <BookOpen size={16} className="text-blue-400" />;
@@ -27,12 +28,10 @@ export default function Home() {
   const [isNightMode, setIsNightMode] = useState(false);
 
   useEffect(() => {
-    // Determine time of day state
     const current = getTimeState();
     setTimeState(current);
     setIsNightMode(current.isNight);
 
-    // Update time state every minute
     const interval = setInterval(() => {
       const updated = getTimeState();
       setTimeState(updated);
@@ -53,23 +52,33 @@ export default function Home() {
   const toggleHabit = async (habitId: string, currentStatus: boolean) => {
     if (!dailyLog || !user) return;
     const newStatus = !currentStatus;
+    
     // Optimistic update
-    setDailyLog((prev: any) => ({
-      ...prev,
-      habits: prev.habits.map((h: any) =>
-        h.habit._id === habitId ? { ...h, completed: newStatus } : h
-      ),
-    }));
-    const res = await fetch("/api/habits/complete", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ logId: dailyLog._id, habitId, completed: newStatus }),
+    setDailyLog((prev: any) => {
+      if (!prev?.habits) return prev;
+      return {
+        ...prev,
+        habits: prev.habits.map((h: any) => {
+          const id = h.habit?._id ? h.habit._id : h.habit;
+          return id === habitId ? { ...h, completed: newStatus } : h;
+        }),
+      };
     });
-    const data = await res.json();
-    if (data.success) {
-      setUser(data.user);
-      setDailyLog(data.dailyLog);
-      if (data.leveledUp) { setShowLevelUp(true); setTimeout(() => setShowLevelUp(false), 4000); }
+
+    try {
+      const res = await fetch("/api/habits/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ logId: dailyLog._id, habitId, completed: newStatus }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setUser(data.user);
+        setDailyLog(data.dailyLog);
+        if (data.leveledUp) { setShowLevelUp(true); setTimeout(() => setShowLevelUp(false), 4000); }
+      }
+    } catch (err) {
+      console.error("Failed to toggle habit", err);
     }
   };
 
@@ -86,8 +95,8 @@ export default function Home() {
 
   const targetXP = getXPForLevel(user.level);
   const progressPercent = Math.min((user.xp / targetXP) * 100, 100);
-  const completedHabits = dailyLog?.habits.filter((h: any) => h.completed).length || 0;
-  const totalHabits = dailyLog?.habits.length || 1;
+  const completedHabits = dailyLog?.habits?.filter((h: any) => h.completed).length || 0;
+  const totalHabits = dailyLog?.habits?.length || 1;
 
   return (
     <div className={`min-h-screen p-6 md:p-10 max-w-5xl mx-auto transition-colors duration-700 relative ${
@@ -196,15 +205,19 @@ export default function Home() {
           </div>
         </div>
         <div className="grid gap-3">
-          {dailyLog?.habits.map((logItem: any) => {
-            const habit = logItem.habit;
+          {dailyLog?.habits?.map((logItem: any) => {
+            const habit = typeof logItem.habit === 'object' ? logItem.habit : null;
+            const habitId = habit?._id || logItem.habit;
+            const habitName = habit?.name || "Habit";
+            const habitXP = habit?.xp || 20;
             const isDone = logItem.completed;
+
             return (
               <motion.div
-                key={habit._id}
+                key={habitId}
                 whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.99 }}
-                onClick={() => toggleHabit(habit._id, isDone)}
+                onClick={() => toggleHabit(habitId, isDone)}
                 className={`glass p-4 rounded-2xl flex items-center justify-between cursor-pointer transition-all border ${
                   isDone ? "border-primary/40 bg-primary/5" : "border-white/30 hover:border-primary/30"
                 } ${isNightMode && isDone ? "bg-purple-950/40 border-purple-500/30" : ""}`}
@@ -214,11 +227,11 @@ export default function Home() {
                     {isDone && <CheckCircle2 size={14} className="text-white" />}
                   </div>
                   <div className="flex items-center gap-2">
-                    {getIconForHabit(habit.name)}
-                    <span className={`font-medium text-sm ${isDone ? "line-through text-muted-foreground" : ""}`}>{habit.name}</span>
+                    {getIconForHabit(habitName)}
+                    <span className={`font-medium text-sm ${isDone ? "line-through text-muted-foreground" : ""}`}>{habitName}</span>
                   </div>
                 </div>
-                <span className="text-xs font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-full">+{habit.xp} XP</span>
+                <span className="text-xs font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-full">+{habitXP} XP</span>
               </motion.div>
             );
           })}

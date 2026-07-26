@@ -18,10 +18,14 @@ export async function POST(req: Request) {
     const user = await User.findOne({ name: "Thamizh" });
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-    const dailyLog = await DailyLog.findById(logId);
+    let dailyLog = await DailyLog.findById(logId).populate("habits.habit");
     if (!dailyLog) return NextResponse.json({ error: "Log not found" }, { status: 404 });
 
-    const habitIndex = dailyLog.habits.findIndex((h: any) => h.habit.toString() === habitId);
+    const habitIndex = dailyLog.habits.findIndex((h: any) => {
+      const id = h.habit?._id ? h.habit._id.toString() : h.habit?.toString();
+      return id === habitId;
+    });
+
     if (habitIndex === -1) return NextResponse.json({ error: "Habit not in log" }, { status: 404 });
 
     const habitInfo = await Habit.findById(habitId);
@@ -43,6 +47,9 @@ export async function POST(req: Request) {
       dailyLog.score = Math.round((completedHabits / totalHabits) * 100);
       
       await dailyLog.save();
+      
+      // Re-populate habits so returned object contains habit info
+      dailyLog = await DailyLog.findById(logId).populate("habits.habit");
       
       // Update User
       user.xp += xpChange;
@@ -71,7 +78,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, user, dailyLog, leveledUp });
     }
 
-    return NextResponse.json({ success: true, message: "No changes needed" });
+    return NextResponse.json({ success: true, user, dailyLog, message: "No changes needed" });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

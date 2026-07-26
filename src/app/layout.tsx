@@ -1,18 +1,7 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ConditionalSidebar from "@/components/ConditionalSidebar";
 import BottomNav from "@/components/BottomNav";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "🌸 Thamizh World",
@@ -25,13 +14,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex">
+    <html lang="en" className="h-full antialiased">
+      <body className="min-h-full flex font-sans">
         <ConditionalSidebar />
-        {/* Add pb-20 on mobile so content clears the bottom nav bar */}
         <div className="flex-1 min-h-screen overflow-y-auto">
           {children}
         </div>
