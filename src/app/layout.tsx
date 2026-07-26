@@ -32,7 +32,7 @@ export default function RootLayout({
       <body className="min-h-full flex">
         <ConditionalSidebar />
         {/* Add pb-20 on mobile so content clears the bottom nav bar */}
-        <div className="flex-1 min-h-screen overflow-y-auto pb-20 md:pb-0">
+        <div className="flex-1 min-h-screen overflow-y-auto">
           {children}
         </div>
         <BottomNav />
