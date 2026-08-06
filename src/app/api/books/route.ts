@@ -26,3 +26,19 @@ export async function PUT(req: Request) {
   const book = await Book.findByIdAndUpdate(bookId, { currentPage: Number(currentPage) }, { new: true });
   return NextResponse.json({ success: true, book });
 }
+
+export async function DELETE(req: Request) {
+  await connectToDatabase();
+  const { searchParams } = new URL(req.url);
+  let bookId = searchParams.get("id");
+  if (!bookId) {
+    try {
+      const body = await req.json();
+      bookId = body.bookId;
+    } catch {}
+  }
+  if (!bookId) return NextResponse.json({ error: "Book ID required" }, { status: 400 });
+
+  await Book.findByIdAndDelete(bookId);
+  return NextResponse.json({ success: true, deletedId: bookId });
+}

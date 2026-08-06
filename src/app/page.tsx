@@ -4,10 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle2, Target, BookOpen, Dumbbell, Moon, Loader2, Flame, Sparkles, Sun } from "lucide-react";
+import { CheckCircle2, Target, BookOpen, Dumbbell, Moon, Loader2, Flame, Sparkles, Sun, Heart } from "lucide-react";
 import { getXPForLevel, getTodayQuote } from "@/lib/utils-app";
 import { getTimeState } from "@/lib/time-theme";
 import TwinklingStars from "@/components/TwinklingStars";
+import GreetingModal from "@/components/GreetingModal";
 
 function getIconForHabit(name?: string) {
   if (!name) return <Sparkles size={16} className="text-primary" />;
@@ -26,6 +27,7 @@ export default function Home() {
   const [showLevelUp, setShowLevelUp] = useState(false);
   const [timeState, setTimeState] = useState(getTimeState());
   const [isNightMode, setIsNightMode] = useState(false);
+  const [showGreeting, setShowGreeting] = useState(false);
 
   useEffect(() => {
     const current = getTimeState();
@@ -127,6 +129,9 @@ export default function Home() {
         )}
       </AnimatePresence>
 
+      {/* Greeting Modal */}
+      <GreetingModal isOpen={showGreeting} onClose={() => setShowGreeting(false)} />
+
       {/* Header */}
       <header className="mb-8 flex justify-between items-start relative z-10">
         <div>
@@ -142,19 +147,31 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Night / Day Mode Preview Toggle */}
-        <button
-          onClick={() => setIsNightMode(!isNightMode)}
-          title={isNightMode ? "Switch to Day Mode" : "Switch to Night Mode"}
-          className={`p-2.5 rounded-2xl glass transition-all border flex items-center gap-2 text-xs font-semibold ${
-            isNightMode 
-              ? "border-purple-500/40 bg-purple-950/40 text-purple-200 hover:bg-purple-900/50" 
-              : "border-primary/20 bg-primary/5 text-primary hover:bg-primary/10"
-          }`}
-        >
-          {isNightMode ? <Sun size={18} className="text-amber-300" /> : <Moon size={18} className="text-purple-500" />}
-          <span className="hidden sm:inline">{isNightMode ? "Day Theme" : "Night Theme"}</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Boopathi Note Button */}
+          <button
+            onClick={() => setShowGreeting(true)}
+            title="Open Boopathi's Love & Congratulations Note"
+            className="px-3 py-2 rounded-2xl bg-gradient-to-r from-pink-500 to-rose-500 text-white font-semibold text-xs shadow-md shadow-pink-500/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-1.5"
+          >
+            <Heart size={14} fill="white" className="animate-pulse" />
+            <span className="hidden sm:inline">Boopathi's Note</span>
+          </button>
+
+          {/* Night / Day Mode Preview Toggle */}
+          <button
+            onClick={() => setIsNightMode(!isNightMode)}
+            title={isNightMode ? "Switch to Day Mode" : "Switch to Night Mode"}
+            className={`p-2.5 rounded-2xl glass transition-all border flex items-center gap-2 text-xs font-semibold ${
+              isNightMode 
+                ? "border-purple-500/40 bg-purple-950/40 text-purple-200 hover:bg-purple-900/50" 
+                : "border-primary/20 bg-primary/5 text-primary hover:bg-primary/10"
+            }`}
+          >
+            {isNightMode ? <Sun size={18} className="text-amber-300" /> : <Moon size={18} className="text-purple-500" />}
+            <span className="hidden sm:inline">{isNightMode ? "Day Theme" : "Night Theme"}</span>
+          </button>
+        </div>
       </header>
 
       {/* Stats Cards */}

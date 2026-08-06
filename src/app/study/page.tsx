@@ -3,11 +3,11 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Clock } from "lucide-react";
+import { Loader2, Plus, Clock, Target, Edit2, Check } from "lucide-react";
 
 const SUBJECTS = [
   { name: "Spoken English", target: 60, color: "bg-blue-400", textColor: "text-blue-600" },
-  { name: "Exam Study", target: 300, color: "bg-amber-400", textColor: "text-amber-600" },
+  { name: "Exam Study", target: 60, color: "bg-amber-400", textColor: "text-amber-600" },
   { name: "Math", target: 60, color: "bg-purple-400", textColor: "text-purple-600" },
   { name: "General Knowledge", target: 30, color: "bg-emerald-400", textColor: "text-emerald-600" },
 ];
@@ -17,28 +17,58 @@ export default function StudyPage() {
   const [sessions, setSessions] = useState<any[]>([]);
   const [todayMinutes, setTodayMinutes] = useState(0);
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({ subject: "Spoken English", duration: "", targetHours: "1" });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [form, setForm] = useState({ subject: "Spoken English", duration: "" });
+  
+  // Customizable daily study goal in hours (default 1 hour = 60 min)
+  const [targetHours, setTargetHours] = useState<number>(1);
+  const [isEditingTarget, setIsEditingTarget] = useState(false);
+  const [customTargetInput, setCustomTargetInput] = useState("1");
 
   useEffect(() => {
+    // Load saved custom study goal if any
+    const savedGoal = localStorage.getItem("thamizh_study_goal_hours");
+    if (savedGoal) {
+      const parsed = parseFloat(savedGoal);
+      if (!isNaN(parsed) && parsed > 0) {
+        setTargetHours(parsed);
+        setCustomTargetInput(savedGoal);
+      }
+    }
+
     fetch("/api/study").then((r) => r.json()).then((d) => {
       if (d.success) { setSessions(d.sessions); setTodayMinutes(d.todayMinutes); }
       setLoading(false);
     });
   }, []);
 
+  const saveTargetHours = (hours: number) => {
+    if (hours <= 0) return;
+    setTargetHours(hours);
+    localStorage.setItem("thamizh_study_goal_hours", hours.toString());
+    setIsEditingTarget(false);
+  };
+
   const logSession = async () => {
-    if (!form.duration) return;
-    const res = await fetch("/api/study", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
-    const data = await res.json();
-    if (data.success) {
-      setSessions((prev) => [data.session, ...prev]);
-      setTodayMinutes((prev) => prev + Number(form.duration));
-      setForm({ subject: "Spoken English", duration: "", targetHours: "1" });
-      setShowAdd(false);
+    if (isSubmitting || !form.duration || Number(form.duration) <= 0) return;
+    setIsSubmitting(true);
+    try {
+      const res = await fetch("/api/study", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, targetHours: targetHours.toString() }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSessions((prev) => [data.session, ...prev]);
+        setTodayMinutes((prev) => prev + Number(form.duration));
+        setForm({ subject: "Spoken English", duration: "" });
+        setShowAdd(false);
+      }
+    } catch (err) {
+      console.error("Error logging study session:", err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -49,6 +79,9 @@ export default function StudyPage() {
   function getSubjectMinutes(name: string) {
     return todaySessions.filter((s) => s.subject === name).reduce((a, s) => a + s.duration, 0);
   }
+
+  const targetMinutes = targetHours * 60;
+  const overallProgressPct = Math.min(Math.round((todayMinutes / targetMinutes) * 100), 100);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-primary w-10 h-10" /></div>;
 
@@ -77,7 +110,7 @@ export default function StudyPage() {
               <select
                 value={form.subject}
                 onChange={(e) => setForm({ ...form, subject: e.target.value })}
-                className="w-full glass border border-primary/20 rounded-xl px-3 py-2.5 text-sm bg-white/50"
+                className="w-full glass border border-primary/20 rounded-xl px-3 py-2.5 text-sm bg-white/50 dark:bg-gray-800/50"
               >
                 {SUBJECTS.map((s) => <option key={s.name}>{s.name}</option>)}
               </select>
@@ -89,26 +122,103 @@ export default function StudyPage() {
                 placeholder="e.g. 60"
                 value={form.duration}
                 onChange={(e) => setForm({ ...form, duration: e.target.value })}
-                className="w-full glass border border-primary/20 rounded-xl px-3 py-2.5 text-sm bg-white/50"
+                className="w-full glass border border-primary/20 rounded-xl px-3 py-2.5 text-sm bg-white/50 dark:bg-gray-800/50 mb-2"
               />
+              {/* Quick preset duration buttons */}
+              <div className="flex flex-wrap gap-2 pt-1">
+                {[
+                  { label: "15m", val: "15" },
+                  { label: "30m", val: "30" },
+                  { label: "45m", val: "45" },
+                  { label: "1 hr", val: "60" },
+                  { label: "1.5 hrs", val: "90" },
+                  { label: "2 hrs", val: "120" },
+                ].map((preset) => (
+                  <button
+                    key={preset.val}
+                    type="button"
+                    onClick={() => setForm({ ...form, duration: preset.val })}
+                    className={`px-3 py-1 rounded-lg text-xs font-semibold border transition-all ${
+                      form.duration === preset.val
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "glass border-primary/20 hover:bg-primary/10 text-foreground"
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="flex gap-3">
-              <button onClick={logSession} className="flex-1 bg-primary text-primary-foreground py-2.5 rounded-xl text-sm font-semibold hover:bg-primary/90">Save Session</button>
-              <button onClick={() => setShowAdd(false)} className="px-4 py-2.5 glass border border-primary/20 rounded-xl text-sm">Cancel</button>
+              <button
+                onClick={logSession}
+                disabled={isSubmitting || !form.duration}
+                className="flex-1 bg-primary text-primary-foreground py-2.5 rounded-xl text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isSubmitting ? <><Loader2 size={16} className="animate-spin" /> Saving...</> : "Save Session"}
+              </button>
+              <button
+                onClick={() => setShowAdd(false)}
+                disabled={isSubmitting}
+                className="px-4 py-2.5 glass border border-primary/20 rounded-xl text-sm"
+              >
+                Cancel
+              </button>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Today's Summary */}
+      {/* Today's Summary & Target Customization */}
       <Card className="glass mb-6 border-primary/20">
         <CardContent className="p-5">
           <div className="flex justify-between items-center mb-1">
-            <span className="font-semibold">Today's Total Study</span>
-            <Badge className="bg-primary/20 text-primary">{Math.floor(todayMinutes / 60)}h {todayMinutes % 60}m</Badge>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold">Today's Total Study</span>
+              <button
+                onClick={() => setIsEditingTarget(!isEditingTarget)}
+                title="Change Study Target"
+                className="text-primary hover:text-primary/80 p-1 text-xs flex items-center gap-1 font-medium underline"
+              >
+                <Edit2 size={13} /> Edit Goal
+              </button>
+            </div>
+            <Badge className="bg-primary/20 text-primary text-sm px-3 py-1 font-bold">
+              {Math.floor(todayMinutes / 60)}h {todayMinutes % 60}m
+            </Badge>
           </div>
-          <Progress value={Math.min((todayMinutes / 300) * 100, 100)} className="h-3 mt-3" />
-          <p className="text-xs text-muted-foreground mt-2">Goal: 5 hours (300 min)</p>
+
+          <Progress value={overallProgressPct} className="h-3.5 mt-3 mb-2" />
+
+          <div className="flex justify-between items-center text-xs text-muted-foreground">
+            <span>Progress: {overallProgressPct}%</span>
+            <span>Goal Target: <span className="font-semibold text-foreground">{targetHours} hr{targetHours > 1 ? "s" : ""} ({targetMinutes} min)</span></span>
+          </div>
+
+          {/* Edit Target Form */}
+          {isEditingTarget && (
+            <div className="mt-4 p-4 glass rounded-2xl border border-primary/20 bg-primary/5 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Target size={16} className="text-primary" />
+                <span className="text-xs font-semibold">Set Daily Study Target:</span>
+              </div>
+              <div className="flex items-center gap-2">
+                {[0.5, 1, 1.5, 2, 3].map((hrs) => (
+                  <button
+                    key={hrs}
+                    onClick={() => saveTargetHours(hrs)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                      targetHours === hrs
+                        ? "bg-primary text-white"
+                        : "glass border border-primary/30 hover:bg-primary/10"
+                    }`}
+                  >
+                    {hrs}h
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -123,12 +233,12 @@ export default function StudyPage() {
               <CardContent className="p-5">
                 <div className="flex justify-between items-center mb-3">
                   <span className="font-semibold">{subj.name}</span>
-                  <Badge variant="outline" className={`${subj.textColor} border-current`}>{pct}%</Badge>
+                  <Badge variant="outline" className={`${subj.textColor} border-current font-bold`}>{pct}%</Badge>
                 </div>
                 <Progress value={pct} className="h-2.5 mb-2" />
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>{minutes} min done</span>
-                  <span>Target: {subj.target} min</span>
+                  <span>Target: {subj.target} min (1 hr)</span>
                 </div>
               </CardContent>
             </Card>
@@ -145,8 +255,8 @@ export default function StudyPage() {
               <div key={i} className="glass rounded-xl px-4 py-3 flex justify-between items-center text-sm">
                 <span className="font-medium">{s.subject}</span>
                 <div className="flex items-center gap-3">
-                  <span className="text-muted-foreground">{s.date}</span>
-                  <Badge variant="secondary">{s.duration} min</Badge>
+                  <span className="text-muted-foreground text-xs">{s.date}</span>
+                  <Badge variant="secondary" className="font-semibold">{s.duration} min</Badge>
                 </div>
               </div>
             ))}
@@ -156,3 +266,4 @@ export default function StudyPage() {
     </div>
   );
 }
+

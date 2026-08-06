@@ -7,7 +7,7 @@ const DEFAULT_HABITS = [
   { name: "Wake up 4:30 AM", target: 1, unit: "Daily", xp: 20 },
   { name: "Spoken English (1 hr)", target: 1, unit: "Hour", xp: 40 },
   { name: "Exercise (45 min)", target: 1, unit: "Session", xp: 30 },
-  { name: "Exam Study (5 hrs)", target: 5, unit: "Hours", xp: 80 },
+  { name: "Exam Study (1 hr)", target: 1, unit: "Hour", xp: 50 },
   { name: "Read Book (1 page)", target: 1, unit: "Page", xp: 20 },
   { name: "Sleep before 11:30 PM", target: 1, unit: "Daily", xp: 20 },
 ];
@@ -33,6 +33,12 @@ export async function GET() {
       // Create default habits for the user
       const habitsToInsert = DEFAULT_HABITS.map(h => ({ ...h, user: user._id }));
       await Habit.insertMany(habitsToInsert);
+    } else {
+      // Migrate existing 5 hrs habit to 1 hr
+      await Habit.updateMany(
+        { user: user._id, name: "Exam Study (5 hrs)" },
+        { $set: { name: "Exam Study (1 hr)", target: 1, unit: "Hour" } }
+      );
     }
 
     return NextResponse.json({ success: true, user });
